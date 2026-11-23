@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: careops-live-demo
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Public portfolio deployment is intentionally non-mutating and does
+      # not call external LLM providers. Enable the full simulated lifecycle locally.
+      - key: CAREOPS_ROUTING_MODE
+        value: demo
+      - key: OLA_MAPS_API_KEY
+        sync: false
+      - key: CAREOPS_PUBLIC_DEMO_READ_ONLY
+        value: "true"
+      - key: CAREOPS_DISABLE_EXTERNAL_LLM
+        value: "true"

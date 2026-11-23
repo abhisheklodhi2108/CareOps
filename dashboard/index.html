@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CareOps · AI operations copilot for home healthcare</title>
+<meta name="description" content="CareOps shows a home-care coordinator which visits need them, reads family messages in English and Hinglish, drafts the reply and suggests a fix to approve. Portfolio demo on synthetic data.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="CareOps · AI operations copilot for home healthcare">
+<meta property="og:description" content="Reads family messages in English and Hinglish, drafts the reply, suggests a safe fix and holds risky visit reports for review. Built with evals; synthetic data.">
+<meta property="og:image" content="https://raw.githubusercontent.com/Ritikajaiswal2707/careops/main/docs/media/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="demo-banner visitor" role="note">
+  <span><b>Portfolio demo</b> by Ritika Jaiswal · synthetic data · You are a home-care coordinator starting your day.</span>
+  <a href="https://github.com/Ritikajaiswal2707/careops/blob/main/docs/CASE_STUDY.md">1-page case study</a>
+  <button type="button" class="banner-btn" onclick="setOperatorView(true)">See the coordinator's view</button>
+</div>
+<div class="wrap">
+  <div class="brand">
+    <div class="wordmark"><svg class="cross" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg>CareOps</div>
+    <span class="brand-links"><button type="button" class="link-btn operator-only" onclick="setOperatorView(false)">Show demo notes</button><a href="https://github.com/Ritikajaiswal2707/careops">How it was built</a></span>
+  </div>
+
+  <section class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">Today's home visits</h1>
+    <p class="today-line" id="today-line"></p>
+    <p class="visitor pitch">CareOps reads family messages in English and Hinglish, drafts the reply, and suggests a fix. You approve; nothing is booked or sent on its own.</p>
+    <div class="summary" id="summary"></div>
+    <details class="ai-box visitor">
+      <summary>Where AI is used, and why it is off here</summary>
+      <ul>
+        <li><span class="tag ai">AI</span> <b>Visit reports:</b> an LLM (gpt-oss-120b) turns a caregiver's note into a report and a family update. Checks after the AI decide what is trusted.</li>
+        <li><span class="tag ai">AI</span> <b>Family messages:</b> rules read them first; an LLM is asked only when the rules can't decide. Every message on today's list was read by rules.</li>
+        <li><span class="tag rules">Model</span> <b>"Act first" and "Check today":</b> a simple statistical model (logistic regression), not generative AI.</li>
+        <li><span class="tag rules">Rules</span> <b>Replacement nurse:</b> hard eligibility checks, then a weighted score with reasons.</li>
+        <li><span class="tag rules">Template</span> <b>Messages to families:</b> fixed templates you edit, so the wording is predictable.</li>
+      </ul>
+      <p class="meta"><b>Why the live AI is off on this page:</b> it is a free public demo, so it has no paid API key and never sends text to an outside model. The visit-report examples are recorded from a real AI run. Run it locally with a free Groq key to see live calls.</p>
+    </details>
+  </section>
+
+  <div class="tabs" id="view-tabs" role="tablist" aria-label="Views">
+    <button type="button" class="tab active" role="tab" id="tab-risk" aria-selected="true" aria-controls="risk-view" data-v="risk">Needs you</button>
+    <button type="button" class="tab" role="tab" id="tab-vr" aria-selected="false" aria-controls="vr-view" tabindex="-1" data-v="vr">Visit reports</button>
+    <button type="button" class="tab" role="tab" id="tab-cascade" aria-selected="false" aria-controls="cascade-view" tabindex="-1" data-v="cascade">Running late</button>
+    <button type="button" class="tab" role="tab" id="tab-live" aria-selected="false" aria-controls="live-view" tabindex="-1" data-v="live">Fix a visit</button>
+  </div>
+
+  <div id="risk-view" role="tabpanel" aria-labelledby="tab-risk">
+    <div class="toolbar">
+      <div class="tabs filters" role="group" aria-label="Filter">
+        <button type="button" class="tab active" aria-pressed="true" data-f="all">All</button>
+        <button type="button" class="tab" aria-pressed="false" data-f="High">Act first</button>
+        <button type="button" class="tab" aria-pressed="false" data-f="Medium">Check today</button>
+      </div>
+      <div class="tabs filters sort" role="group" aria-label="Sort">
+        <button type="button" class="tab active" aria-pressed="true" data-s="risk">Most urgent</button>
+        <button type="button" class="tab" aria-pressed="false" data-s="time">By time</button>
+      </div>
+    </div>
+    <div class="meta demo-line visitor">Approving shows what would happen next. In this demo nothing is sent or booked.</div>
+    <div id="filter-note"></div>
+
+    <div id="list"></div>
+    <div id="done"></div>
+    <div id="confirmed"></div>
+    <div id="owner"></div>
+    <div id="history"></div>
+
+    <details class="note about">
+      <summary>About the risk model and its known limitation</summary>
+      The list is sized to what one coordinator can review in a day: the riskiest 10% of visits are marked "Act first" and the next 10% "Check today". The risk score is a simple statistical model (ROC-AUC 0.58), so it is a "look here first" helper, not a verdict.<br><br>
+      <b>Known limitation:</b> for first-time patients the model predicts more risk than actually happens (25.6% predicted, 17.0% observed), so its scores for them should be recalibrated before any real use.
+    </details>
+  </div>
+
+  <div id="cascade-view" role="tabpanel" aria-labelledby="tab-cascade" style="display:none"></div>
+
+  <div id="vr-view" role="tabpanel" aria-labelledby="tab-vr" style="display:none">
+    <div class="card">
+      <div style="font-weight:700; font-size:1rem; margin-bottom:5px;">Visit reports</div>
+      <div class="meta">After a nursing or companion visit, the caregiver sends a voice note. CareOps turns it into a report and a family update. Checks after the AI decide what is trusted: a number must actually appear in the note, red flags (a fall, very low sugar) always go to you, and the family update waits until you have looked.</div>
+      <div class="meta" id="vr-provenance" style="margin-top:8px;"></div>
+      <label class="tz" for="family-tz">The family lives in
+        <select id="family-tz" onchange="renderVisitReports()">
+          <option value="330">India</option>
+          <option value="-240">Toronto</option>
+          <option value="60">London</option>
+          <option value="240">Dubai</option>
+          <option value="-420">San Francisco</option>
+        </select>
+      </label>
+    </div>
+    <div id="vr-list"></div>
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:6px;">Try your own note</div>
+      <textarea id="vr-input" aria-label="Caregiver visit note" rows="3" maxlength="4000" placeholder="e.g. BP 130/85, sugar 140. Papa ne dawai le li." style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font:inherit; font-size:.9rem;"></textarea>
+      <div class="btns" style="margin-top:8px;">
+        <button class="ghost" id="record-btn" type="button" onclick="toggleRecording()" hidden>Record a voice note</button>
+        <button class="approve" onclick="tryVisitReport()" style="flex:1; padding:11px 14px;">Structure this note</button>
+      </div>
+      <div class="meta" style="margin-top:6px;">The live AI is off on this public demo, so your note goes to a person for review. The readings and red-flag checks still run.</div>
+      <div id="vr-result" aria-live="polite" style="margin-top:12px;"></div>
+    </div>
+    <div class="note">Thresholds only decide whether a person looks first. They follow ACC/AHA, ADA and NEWS2 lines and are not clinically validated (<a href="https://github.com/Ritikajaiswal2707/careops/blob/main/docs/THRESHOLDS.md">sources</a>).</div>
+  </div>
+
+  <div id="live-view" role="tabpanel" aria-labelledby="tab-live" style="display:none">
+    <div class="seg big" role="group" aria-label="What happened">
+      <button type="button" class="on" id="mode-visit" aria-pressed="true" onclick="setFixMode('visit')">One visit</button>
+      <button type="button" id="mode-nurse" aria-pressed="false" onclick="setFixMode('nurse')">A nurse is out today</button>
+    </div>
+    <div class="card" id="nurse-card" hidden>
+      <div style="font-weight:700; font-size:1rem; margin-bottom:5px;">A nurse is out today</div>
+      <div class="meta" style="margin-bottom:14px;">When a nurse calls in sick, all her visits need cover. CareOps checks each one and suggests who can take it, without giving one nurse more visits than she has room for.</div>
+      <label for="nurse-select" style="display:block; font-size:.8rem; font-weight:600; margin-bottom:6px;">Who is out?</label>
+      <select id="nurse-select" onchange="document.getElementById('nurse-result').innerHTML=''" class="field"></select>
+      <button class="approve" id="nurse-button" onclick="coverNurseDay()" style="width:100%; padding:11px 14px;">Find cover for all her visits</button>
+      <div id="nurse-result" aria-live="polite" style="margin-top:12px;"></div>
+    </div>
+    <div class="card" id="visit-card">
+      <div style="font-weight:700; font-size:1rem; margin-bottom:5px;">Fix a visit</div>
+      <div class="meta" style="margin-bottom:14px;">A nurse can't make one visit. Pick it and CareOps finds the best replacement, with its reasons, and drafts the message to the family.</div>
+      <label for="live-appt" style="display:block; font-size:.8rem; font-weight:600; margin-bottom:6px;">Visit that needs a new nurse</label>
+      <select id="live-appt" onchange="renderIncidentSummary(); resetLiveResult();" style="width:100%; padding:10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); font-size:.9rem; margin-bottom:12px;"></select>
+      <div id="incident-summary" style="padding:12px; background:var(--bg); border:1px solid var(--line); border-radius:10px; margin-bottom:12px;"></div>
+      <label for="recovery-mode" style="display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;">When should the visit happen?</label>
+      <select id="recovery-mode" onchange="updateRecoveryDate()" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);margin-bottom:12px;">
+        <option value="today">Same day, with another nurse</option>
+        <option value="future">Another day</option>
+      </select>
+      <div id="recovery-date-wrap" style="display:none;margin-bottom:12px;">
+        <label for="recovery-date" style="display:block;font-size:.85rem;font-weight:600;margin-bottom:6px;">New visit date</label>
+        <select id="recovery-date" class="field"></select>
+        <div class="meta" style="margin-top:5px;">Demo availability covers the 60 days after the simulated day.</div>
+      </div>
+      <button class="approve" id="find-recovery-button" onclick="askCareOps()" style="width:100%; padding:11px 14px;">Find a replacement</button>
+      <div id="live-result" aria-live="polite" style="margin-top:12px;"></div>
+    </div>
+  </div>
+  <div class="footer">Synthetic data from a simulated home-care operation, built as a product portfolio demo. Not for clinical use. Out of scope: emergency response, night-time alerts and billing.</div>
+</div>
+
+<script>
+// Data generated offline: model/generate_dashboard_data.py and model/generate_visit_report_examples.py
+const DATA = {"today":"2026-08-29","summary":{"total":95,"high":10,"medium":9,"low":76},"flagged":[{"id":"APT004512","time":"Evening","service":"Wound Dressing","risk":0.45,"tier":"High","reasons":["3 prior no-shows before this visit","14.6km from clinician","Evening slot"],"action":"Call to confirm 24h ahead"},{"id":"APT006955","time":"Evening","service":"Post-Op Care","risk":0.43,"tier":"High","reasons":["2 prior no-shows before this visit","21.9km from clinician","Evening slot"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT002040","time":"Afternoon","service":"Wound Dressing","risk":0.41,"tier":"High","reasons":["2 prior no-shows before this visit","Low message response rate so far","23.8km from clinician"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT007922","time":"Evening","service":"Diabetic Care Visit","risk":0.39,"tier":"High","reasons":["2 prior no-shows before this visit","15.1km from clinician","Evening slot"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT009386","time":"Evening","service":"Nursing Visit","risk":0.38,"tier":"High","reasons":["23.3km from clinician","Evening slot"],"action":"Patient confirmed — no action needed","patientSignal":{"channel":"WhatsApp","message":"Ok confirmed","intent":"Confirm","cancel_current":false,"preferred_day":null,"urgency":"Low","reason":null,"next_week":false,"relative_day":null,"offset_days":null,"source":"rule","escalate_to_human":false}},{"id":"APT004397","time":"Evening","service":"Nursing Visit","risk":0.37,"tier":"High","reasons":["2 prior no-shows before this visit","13.3km from clinician","Evening slot"],"action":"Send confirmation + backup contact request"},{"id":"APT007368","time":"Afternoon","service":"Post-Op Care","risk":0.37,"tier":"High","reasons":["3 prior no-shows before this visit"],"action":"Call to confirm 24h ahead"},{"id":"APT009378","time":"Afternoon","service":"Diabetic Care Visit","risk":0.36,"tier":"High","reasons":["2 prior no-shows before this visit","16.7km from clinician"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT002495","time":"Evening","service":"Wound Dressing","risk":0.35,"tier":"High","reasons":["17.3km from clinician","Evening slot"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT004846","time":"Evening","service":"Post-Op Care","risk":0.35,"tier":"High","reasons":["Low message response rate so far","24.8km from clinician"],"action":"Reassign needed — no covering provider with spare capacity today"},{"id":"APT007653","time":"Morning","service":"Wound Dressing","risk":0.34,"tier":"Medium","reasons":["2 prior no-shows before this visit","16.3km from clinician"],"action":"Send confirmation + backup contact request"},{"id":"APT001903","time":"Evening","service":"Nursing Visit","risk":0.34,"tier":"Medium","reasons":["17.7km from clinician","Evening slot"],"action":"Send confirmation + backup contact request"},{"id":"APT007546","time":"Afternoon","service":"Physiotherapy Session","risk":0.34,"tier":"Medium","reasons":["24.8km from clinician"],"action":"Send confirmation + backup contact request"},{"id":"APT009737","time":"Morning","service":"Wound Dressing","risk":0.34,"tier":"Medium","reasons":["24.4km from clinician"],"action":"Agent proposed: move to 2026-09-01 with PR010 — awaiting confirmation","patientSignal":{"channel":"WhatsApp","message":"Doctor visit hai usi din, reschedule possible?","intent":"Reschedule","cancel_current":false,"preferred_day":null,"urgency":"Medium","reason":"Conflicting doctor visit","next_week":false,"relative_day":null,"offset_days":null,"source":"rule","escalate_to_human":false},"agentTrace":["Patient (PT00275, Mumbai): \"Doctor visit hai usi din, reschedule possible?\"","Extracted (rule): intent=Reschedule, cancel_current=False, preferred_day=None, next_week=False, relative_day=None, offset_days=None, urgency=Medium, reason=Conflicting doctor visit","Checked 2026-08-30 via the unified Recovery Score engine: no eligible candidate found in Mumbai.","Checked 2026-08-31 via the unified Recovery Score engine: no eligible candidate found in Mumbai.","Checked 2026-09-01 via the unified Recovery Score engine: 1 eligible candidate(s) in Mumbai.","Proposed: move to 2026-09-01 with PR010 (Recovery Score 68.9: this is the patient's current provider, free on this date; 7 slot(s) free today; room in the same morning slot; General Nursing — primary fit for Wound Dressing).","State: PENDING -> PROPOSED (PR010). Case is now PROPOSED and stops here honestly — there is no live reply channel in this environment to actually receive PATIENT_CONFIRMED or DECLINED; advancing further needs a real channel to get the patient's answer from, not something to simulate as if it were live."],"rescheduleProposal":{"new_date":"2026-09-01","provider_id":"PR010","area":"Mumbai","remaining_capacity":7,"recovery_score":68.9,"reasons":["this is the patient's current provider, free on this date","7 slot(s) free today","room in the same morning slot","General Nursing — primary fit for Wound Dressing"],"state":"PROPOSED"}},{"id":"APT000881","time":"Morning","service":"Nursing Visit","risk":0.34,"tier":"Medium","reasons":["22.5km from clinician"],"action":"Patient confirmed — no action needed","patientSignal":{"channel":"Call","message":"Haan theek hai, confirm kar do","intent":"Confirm","cancel_current":false,"preferred_day":null,"urgency":"Low","reason":null,"next_week":false,"relative_day":null,"offset_days":null,"source":"rule","escalate_to_human":false}},{"id":"APT006706","time":"Evening","service":"Physiotherapy Session","risk":0.34,"tier":"Medium","reasons":["15.4km from clinician","Evening slot"],"action":"Send confirmation + backup contact request"},{"id":"APT006709","time":"Afternoon","service":"Wound Dressing","risk":0.34,"tier":"Medium","reasons":["2 prior no-shows before this visit","13.7km from clinician"],"action":"Agent proposed: move to 2026-08-31 with PR007 — awaiting confirmation","patientSignal":{"channel":"WhatsApp","message":"Can we move to next week?","intent":"Reschedule","cancel_current":false,"preferred_day":null,"urgency":"Medium","reason":null,"next_week":true,"relative_day":null,"offset_days":null,"source":"rule","escalate_to_human":false},"agentTrace":["Patient (PT01801, Hyderabad): \"Can we move to next week?\"","Extracted (rule): intent=Reschedule, cancel_current=False, preferred_day=None, next_week=True, relative_day=None, offset_days=None, urgency=Medium, reason=None","Checked 2026-08-31 via the unified Recovery Score engine: 1 eligible candidate(s) in Hyderabad.","Proposed: move to 2026-08-31 with PR007 (Recovery Score 73.4: 11.6 km from patient (inferred); 5 slot(s) free today; room in the same afternoon slot; has treated this patient before; General Nursing — primary fit for Wound Dressing).","State: PENDING -> PROPOSED (PR007). Case is now PROPOSED and stops here honestly — there is no live reply channel in this environment to actually receive PATIENT_CONFIRMED or DECLINED; advancing further needs a real channel to get the patient's answer from, not something to simulate as if it were live."],"rescheduleProposal":{"new_date":"2026-08-31","provider_id":"PR007","area":"Hyderabad","remaining_capacity":5,"recovery_score":73.4,"reasons":["11.6 km from patient (inferred)","5 slot(s) free today","room in the same afternoon slot","has treated this patient before","General Nursing — primary fit for Wound Dressing"],"state":"PROPOSED"}},{"id":"APT005092","time":"Afternoon","service":"Post-Op Care","risk":0.33,"tier":"Medium","reasons":["2 prior no-shows before this visit","15.0km from clinician"],"action":"Patient confirmed — no action needed","patientSignal":{"channel":"WhatsApp","message":"Yes that works, see you then","intent":"Confirm","cancel_current":false,"preferred_day":null,"urgency":"Low","reason":null,"next_week":false,"relative_day":null,"offset_days":null,"source":"rule","escalate_to_human":false}},{"id":"APT003376","time":"Morning","service":"Physiotherapy Session","risk":0.33,"tier":"Medium","reasons":["22.9km from clinician"],"action":"Send confirmation + backup contact request"}],"cascades":[{"id":"APT000022","service":"Post-Op Care","slot":"Afternoon","provider":"PR008 (Contractual)","delay":17,"buffer":19,"usedPct":89,"notified":false,"locGap":false,"recovery":"No backup provider with spare capacity today — needs manual coordinator call"},{"id":"APT003376","service":"Physiotherapy Session","slot":"Morning","provider":"PR016 (Contractual)","delay":13,"buffer":15,"usedPct":87,"notified":false,"locGap":true,"recovery":"Backup available: PR019 — 8.6 km from patient (inferred), 3 slot(s) free today, room in the same morning slot, has treated this patient before, Physiotherapy — primary fit for Physiotherapy Session"},{"id":"APT008100","service":"Nursing Visit","slot":"Evening","provider":"PR020 (Contractual)","delay":14,"buffer":16,"usedPct":88,"notified":false,"locGap":false,"recovery":"No backup provider with spare capacity today — needs manual coordinator call"}]};
+const VR_EXAMPLES = {"model": "openai/gpt-oss-120b", "recorded_at": "2026-10-31T00:31:47+00:00", "safety_version": "1.3", "examples": [{"id": "VR01", "point": "Routine visit: every vital verified, family update sent.", "transcript": "Visit done. BP 128/82, sugar fasting 112, oxygen 97, pulse 76. Uncle ne nashta kar liya tha, morning ki dawai le li. Sab normal laga.", "model_vitals": {"BP sys": 128, "BP dia": 82, "Sugar": 112, "SpO2": 97, "Pulse": 76}, "verified_vitals": {"BP sys": 128, "BP dia": 82, "Sugar": 112, "SpO2": 97, "Pulse": 76}, "unverified": {}, "needs_review": false, "reasons": [], "readings": [{"vital": "bp_systolic", "value": 128, "status": "usual"}, {"vital": "bp_diastolic", "value": 82, "status": "usual"}, {"vital": "blood_sugar_mg_dl", "value": 112, "status": "usual"}, {"vital": "spo2_pct", "value": 97, "status": "usual"}, {"vital": "pulse_bpm", "value": 76, "status": "usual"}], "family_summary": "Your uncle had his breakfast and took his morning medicines. His blood pressure, sugar, oxygen level and pulse were all within normal range. He seemed well during the visit.", "draft_family_summary": "Your uncle had his breakfast and took his morning medicines. His blood pressure, sugar, oxygen level and pulse were all within normal range. He seemed well during the visit."}, {"id": "VR07", "point": "No vitals mentioned: the model invented none.", "transcript": "Aaj sirf companion visit tha. Bank gaye, passbook update karwayi, phir chai pi aur ghar chhod diya. Aunty khush thi.", "model_vitals": {}, "verified_vitals": {}, "unverified": {}, "needs_review": false, "reasons": [], "readings": [], "family_summary": "Today we had a companion visit. We went to the bank, updated the passbook, had tea and then left. Aunty was happy.", "draft_family_summary": "Today we had a companion visit. We went to the bank, updated the passbook, had tea and then left. Aunty was happy."}, {"id": "VR14", "point": "Spoken Hindi numbers: the model misread 'sattanve' (97) as 100; grounding held it for review.", "transcript": "BP ek sau bees by assi tha, oxygen sattanve. Mummy ne lunch achhe se kiya.", "model_vitals": {"BP sys": 120, "BP dia": 80, "SpO2": 100}, "verified_vitals": {}, "unverified": {"BP sys": 120.0, "BP dia": 80.0, "SpO2": 100.0}, "needs_review": true, "reasons": ["vital value not found as a number in the note: bp_diastolic, bp_systolic, spo2_pct"], "readings": [], "family_summary": null, "draft_family_summary": "Your loved one had a blood pressure of 120 over 80 and good oxygen saturation. They enjoyed a proper lunch. No concerns were noted at this time."}, {"id": "VR20", "point": "Two readings: the model kept the normal 88; the reading scan caught the earlier low 62.", "transcript": "Sugar 62 tha, haath kaanp rahe the. Turant juice diya, 15 min baad 88 aaya.", "model_vitals": {"Sugar": 88}, "verified_vitals": {"Sugar": 88}, "unverified": {}, "needs_review": true, "reasons": ["red flag: note mentions blood_sugar_mg_dl=62.0"], "readings": [{"vital": "blood_sugar_mg_dl", "value": 62, "status": "red flag"}, {"vital": "blood_sugar_mg_dl", "value": 88, "status": "usual"}], "family_summary": null, "draft_family_summary": "We checked her blood sugar, which was low at 62 mg/dL. She was given juice and after 15 minutes it rose to 88 mg/dL. Her hands were shaking initially but improved."}, {"id": "VR22", "point": "A fall mentioned: escalated on the keyword, even though the vitals are normal.", "transcript": "Papa kal raat bathroom mein gir gaye the, mathe pe halki chot hai. BP 136/86.", "model_vitals": {"BP sys": 136, "BP dia": 86}, "verified_vitals": {"BP sys": 136, "BP dia": 86}, "unverified": {}, "needs_review": true, "reasons": ["red flag: keyword:gir gaye", "family update makes promises not in the note: keep you updated, monitoring"], "readings": [{"vital": "bp_systolic", "value": 136, "status": "usual"}, {"vital": "bp_diastolic", "value": 86, "status": "usual"}], "family_summary": null, "draft_family_summary": "Your father had a fall in the bathroom last night and sustained a minor head injury. His blood pressure was measured at 136 over 86. We are monitoring him and will keep you updated."}]};
+</script>
+<script src="app.js"></script>
+</body>
+</html>
